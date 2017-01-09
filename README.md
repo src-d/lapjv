@@ -19,9 +19,10 @@ Jonker-Volgenant algorithm is described in the paper:
  
 R. Jonker and A. Volgenant, "A Shortest Augmenting Path Algorithm for Dense and Sparse Linear Assignment Problems," _Computing_, vol. 38, pp. 325-340, 1987.
 
-It is faster in practice than the [Hungarian algorithm](https://en.wikipedia.org/wiki/Hungarian_algorithm),
-though it is not clear how complexities differ. The mentioned article is not publicly
-available, and spending money just to figure this out seems to be an overkill.
+This paper is not publicly available though a brief description exists on
+[sciencedirect.com](http://www.sciencedirect.com/science/article/pii/S0166218X99001729).
+JV is faster in practice than the [Hungarian algorithm](https://en.wikipedia.org/wiki/Hungarian_algorithm),
+though the complexity is the same - O(n<sup>3</sup>).
 
 The C++ source of the algorithm comes from http://www.magiclogic.com/assignment.html
 It has been reworked and partially optimized with OpenMP 4.0 SIMD.

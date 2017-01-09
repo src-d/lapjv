@@ -3,7 +3,7 @@
 #include <limits>
 #include <memory>
 
-/// @brief LAPJV
+/// @brief Jonker-Volgenant algorithm.
 /// @param dim in problem size
 /// @param assigncost in cost matrix
 /// @param verbose in indicates whether to report the progress to stdout
@@ -57,8 +57,7 @@ cost lap(int dim, const cost *assigncost, bool verbose,
   for (idx i = 0; i < dim; i++) {
     if (matches[i] == 0) {  // fill list of unassigned 'free' rows.
       free[numfree++] = i;
-    } else if (matches[i]
-        == 1) {  // transfer reduction from rows that are assigned once.
+    } else if (matches[i] == 1) {  // transfer reduction from rows that are assigned once.
       idx j1 = rowsol[i];
       cost min = std::numeric_limits<cost>::max();
       for (idx j = 0; j < dim; j++) {
@@ -84,8 +83,7 @@ cost lap(int dim, const cost *assigncost, bool verbose,
     numfree = 0;  // start list of rows still free after augmenting row reduction.
     while (k < prevnumfree) {
       idx j2 = -1;
-      idx i = free[k];
-      k++;
+      idx i = free[k++];
 
       // find minimum and second minimum reduced cost over columns.
       cost umin = assigncost[i * dim] - v[0];
@@ -135,18 +133,19 @@ cost lap(int dim, const cost *assigncost, bool verbose,
         }
       }
     }
+    if (verbose) {
+      printf("lapjv: AUGMENTING ROW REDUCTION %d / %d\n", loopcnt + 1, 2);
+    }
   }  // for loopcnt
-  if (verbose) {
-    printf("lapjv: AUGMENTING ROW REDUCTION finished\n");
-  }
 
   // AUGMENT SOLUTION for each free row.
   for (idx f = 0; f < numfree; f++) {
-    if (verbose) {
-      printf("lapjv: AUGMENT SOLUTION %d / %d\n", f, numfree);
-    }
     idx endofpath;
     idx freerow = free[f];       // start row of augmenting path.
+    if (verbose) {
+      printf("lapjv: AUGMENT SOLUTION row %d [%d / %d]\n",
+             freerow, f + 1, numfree);
+    }
 
     // Dijkstra shortest path algorithm.
     // runs until unassigned column added to shortest path tree.
@@ -175,7 +174,7 @@ cost lap(int dim, const cost *assigncost, bool verbose,
           idx j = collist[k];
           cost h = d[j];
           if (h <= min) {
-            if (h < min) {    // new minimum.
+            if (h < min) {   // new minimum.
               up = low;      // restart list at index low.
               min = h;
             }
@@ -207,6 +206,24 @@ cost lap(int dim, const cost *assigncost, bool verbose,
           idx j = collist[k];
           cost v2 = assigncost[i * dim + j] - v[j] - h;
           if (v2 < d[j]) {
+            bool cycle = false;
+            idx end = j;
+            for (idx i2 = i; i2 != freerow; i2 = pred[end]) {
+              end = rowsol[i2];
+              if (end == j) {
+                if (sizeof(cost) == 4) {
+                  printf("lapjv: cycle path encountered, consider increasing "
+                         "the floating point precision\n");
+                } else {
+                  printf("lapjv: cycle path encountered - expect bad things\n");
+                }
+                cycle = true;
+                break;
+              }
+            }
+            if (cycle) {
+              continue;
+            }
             pred[j] = i;
             if (v2 == min) {  // new column found at same minimum value
               if (colsol[j] < 0) {
@@ -233,11 +250,15 @@ cost lap(int dim, const cost *assigncost, bool verbose,
     }
 
     // reset row and column assignments along the alternating path.
-    for (idx i = pred[endofpath]; i != freerow; i = pred[endofpath]) {
-      colsol[endofpath] = i;
-      idx j1 = endofpath;
-      endofpath = rowsol[i];
-      rowsol[i] = j1;
+    {
+      idx i;
+      do {
+        i = pred[endofpath];
+        colsol[endofpath] = i;
+        idx j1 = endofpath;
+        endofpath = rowsol[i];
+        rowsol[i] = j1;
+      } while (i != freerow);
     }
   }
   if (verbose) {

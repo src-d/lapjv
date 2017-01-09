@@ -43,5 +43,16 @@ class LapjvTests(unittest.TestCase):
     def test_random_100_float32(self):
         self._test_random_100(float32)
 
+    def test_1024(self):
+        random.seed(777)
+        size = 1024
+        dots = random.random((size, 2))
+        grid = dstack(meshgrid(linspace(0, 1, sqrt(size)),
+                               linspace(0, 1, sqrt(size)))).reshape(-1, 2)
+        cost = cdist(dots, grid, "sqeuclidean").astype(float32)
+        cost *= 100000 / cost.max()
+        row_ind_lapjv, col_ind_lapjv, _ = lapjv(cost, verbose=True)
+        self.assertEqual(len(set(col_ind_lapjv)), dots.shape[0])
+
 if __name__ == "__main__":
     unittest.main()
