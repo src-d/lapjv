@@ -206,24 +206,6 @@ cost lap(int dim, const cost *assigncost, bool verbose,
           idx j = collist[k];
           cost v2 = assigncost[i * dim + j] - v[j] - h;
           if (v2 < d[j]) {
-            bool cycle = false;
-            idx end = j;
-            for (idx i2 = i; i2 != freerow; i2 = pred[end]) {
-              end = rowsol[i2];
-              if (end == j) {
-                if (sizeof(cost) == 4) {
-                  printf("lapjv: cycle path encountered, consider increasing "
-                         "the floating point precision\n");
-                } else {
-                  printf("lapjv: cycle path encountered - expect bad things\n");
-                }
-                cycle = true;
-                break;
-              }
-            }
-            if (cycle) {
-              continue;
-            }
             pred[j] = i;
             if (v2 == min) {  // new column found at same minimum value
               if (colsol[j] < 0) {
