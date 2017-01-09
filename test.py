@@ -14,7 +14,7 @@ class LapjvTests(unittest.TestCase):
                                linspace(0, 1, sqrt(size)))).reshape(-1, 2)
         cost = cdist(dots, grid, "sqeuclidean").astype(dtype)
         cost *= 100000 / cost.max()
-        row_ind_lapjv, col_ind_lapjv, _ = lapjv(cost)
+        row_ind_lapjv, col_ind_lapjv, _ = lapjv(cost, verbose=True)
         # Obtained from pyLAPJV on Python 2.7
         row_ind_original = array([
             32, 51, 99, 77, 62, 1, 35, 69, 57, 42, 13, 24, 96, 26, 82, 52, 65,

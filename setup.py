@@ -5,7 +5,7 @@ setup(
     name="lapjv",
     description="Linear sum assignment problem solver using Jonker-Volgenant "
                 "algorithm.",
-    version="1.0.1",
+    version="1.1.0",
     license="MIT",
     author="Vadim Markovtsev",
     author_email="vadim@sourced.tech",

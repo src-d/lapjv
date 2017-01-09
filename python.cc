@@ -61,9 +61,11 @@ using pyarray = _pyobj<PyArrayObject>;
 
 static PyObject *py_lapjv(PyObject *self, PyObject *args, PyObject *kwargs) {
   PyObject *cost_matrix_obj;
-  static const char *kwlist[] = {"cost_matrix", NULL};
+  int verbose = 0;
+  static const char *kwlist[] = {"cost_matrix", "verbose", NULL};
   if (!PyArg_ParseTupleAndKeywords(
-      args, kwargs, "O", const_cast<char**>(kwlist), &cost_matrix_obj)) {
+      args, kwargs, "O|p", const_cast<char**>(kwlist),
+      &cost_matrix_obj, &verbose)) {
     return NULL;
   }
   pyarray cost_matrix_array;
@@ -114,14 +116,14 @@ static PyObject *py_lapjv(PyObject *self, PyObject *args, PyObject *kwargs) {
     auto u = reinterpret_cast<float*>(PyArray_DATA(u_array.get()));
     auto v = reinterpret_cast<float*>(PyArray_DATA(v_array.get()));
     Py_BEGIN_ALLOW_THREADS
-    lapcost = lap(dim, reinterpret_cast<float*>(cost_matrix),
+    lapcost = lap(dim, reinterpret_cast<float*>(cost_matrix), verbose,
                   row_ind, col_ind, u, v);
     Py_END_ALLOW_THREADS
   } else {
     auto u = reinterpret_cast<double*>(PyArray_DATA(u_array.get()));
     auto v = reinterpret_cast<double*>(PyArray_DATA(v_array.get()));
     Py_BEGIN_ALLOW_THREADS
-    lapcost = lap(dim, reinterpret_cast<double*>(cost_matrix),
+    lapcost = lap(dim, reinterpret_cast<double*>(cost_matrix), verbose,
                   row_ind, col_ind, u, v);
     Py_END_ALLOW_THREADS
   }

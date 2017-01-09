@@ -1,17 +1,19 @@
 #include <cassert>
+#include <cstdio>
 #include <limits>
 #include <memory>
 
 /// @brief LAPJV
 /// @param dim in problem size
 /// @param assigncost in cost matrix
+/// @param verbose in indicates whether to report the progress to stdout
 /// @param rowsol out column assigned to row in solution / size dim
 /// @param colsol out row assigned to column in solution / size dim
 /// @param u out dual variables, row reduction numbers / size dim
 /// @param v out dual variables, column reduction numbers / size dim
 /// @return achieved minimum assignment cost
 template <typename idx, typename cost>
-cost lap(int dim, const cost *assigncost,
+cost lap(int dim, const cost *assigncost, bool verbose,
          idx *rowsol, idx *colsol, cost *u, cost *v) {
   auto free = std::unique_ptr<idx[]>(new idx[dim]);     // list of unassigned rows.
   auto collist = std::unique_ptr<idx[]>(new idx[dim]);  // list of columns to be scanned in various ways.
@@ -46,6 +48,9 @@ cost lap(int dim, const cost *assigncost,
       colsol[j] = -1;        // row already assigned, column not assigned.
     }
   }
+  if (verbose) {
+    printf("lapjv: COLUMN REDUCTION finished\n");
+  }
 
   // REDUCTION TRANSFER
   idx numfree = 0;
@@ -65,6 +70,9 @@ cost lap(int dim, const cost *assigncost,
       }
       v[j1] = v[j1] - min;
     }
+  }
+  if (verbose) {
+    printf("lapjv: REDUCTION TRANSFER finished\n");
   }
 
   // AUGMENTING ROW REDUCTION
@@ -128,9 +136,15 @@ cost lap(int dim, const cost *assigncost,
       }
     }
   }  // for loopcnt
+  if (verbose) {
+    printf("lapjv: AUGMENTING ROW REDUCTION finished\n");
+  }
 
   // AUGMENT SOLUTION for each free row.
   for (idx f = 0; f < numfree; f++) {
+    if (verbose) {
+      printf("lapjv: AUGMENT SOLUTION %d / %d\n", f, numfree);
+    }
     idx endofpath;
     idx freerow = free[f];       // start row of augmenting path.
 
@@ -226,6 +240,9 @@ cost lap(int dim, const cost *assigncost,
       rowsol[i] = j1;
     }
   }
+  if (verbose) {
+    printf("lapjv: AUGMENT SOLUTION finished\n");
+  }
 
   // calculate optimal cost.
   cost lapcost = 0;
@@ -234,6 +251,9 @@ cost lap(int dim, const cost *assigncost,
     idx j = rowsol[i];
     u[i] = assigncost[i * dim + j] - v[j];
     lapcost += assigncost[i * dim + j];
+  }
+  if (verbose) {
+    printf("lapjv: optimal cost calculated\n");
   }
 
   return lapcost;
