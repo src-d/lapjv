@@ -1,4 +1,5 @@
 from setuptools import setup, Extension
+import numpy
 
 setup(
     name="lapjv",
@@ -13,6 +14,7 @@ setup(
     ext_modules=[Extension("lapjv", sources=["python.cc"], extra_compile_args=[
         "-fopenmp", "-std=c++11", "-march=native", "-ftree-vectorize"])],
     install_requires=["numpy"],
+    include_dirs = [numpy.get_include()],
     classifiers=[
         "Development Status :: 4 - Beta",
         "Intended Audience :: Developers",
