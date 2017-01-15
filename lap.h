@@ -3,7 +3,7 @@
 #include <limits>
 #include <memory>
 
-#ifdef __AVX__
+#ifdef __AVX2__
 #include <immintrin.h>
 
 template <typename idx>
