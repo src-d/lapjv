@@ -3,6 +3,182 @@
 #include <limits>
 #include <memory>
 
+#ifdef __AVX__
+#include <immintrin.h>
+
+template <typename idx>
+__attribute__((always_inline)) inline std::tuple<float, float, idx, idx> find_umins(
+    idx dim, idx i, const float *assigncost, const float *v) {
+  __m256i idxvec = _mm256_setr_epi32(0, 1, 2, 3, 4, 5, 6, 7);
+  __m256i j1vec = _mm256_set1_epi32(-1), j2vec = _mm256_set1_epi32(-1);
+  __m256 uminvec = _mm256_set1_ps(std::numeric_limits<float>::max()),
+         usubminvec = _mm256_set1_ps(std::numeric_limits<float>::max());
+  for (idx j = 0; j < dim - 7; j += 8) {
+    __m256 acvec = _mm256_loadu_ps(assigncost + i * dim + j);
+    __m256 vvec = _mm256_loadu_ps(v + j);
+    __m256 h = _mm256_sub_ps(acvec, vvec);
+    __m256 cmp = _mm256_cmp_ps(h, uminvec, _CMP_LE_OQ);
+    usubminvec = _mm256_blendv_ps(usubminvec, uminvec, cmp);
+    j2vec = _mm256_blendv_epi8(
+        j2vec, j1vec, reinterpret_cast<__m256i>(cmp));
+    uminvec = _mm256_blendv_ps(uminvec, h, cmp);
+    j1vec = _mm256_blendv_epi8(
+        j1vec, idxvec, reinterpret_cast<__m256i>(cmp));
+    cmp = _mm256_andnot_ps(cmp, _mm256_cmp_ps(h, usubminvec, _CMP_LT_OQ));
+    usubminvec = _mm256_blendv_ps(usubminvec, h, cmp);
+    j2vec = _mm256_blendv_epi8(
+        j2vec, idxvec, reinterpret_cast<__m256i>(cmp));
+    idxvec = _mm256_add_epi32(idxvec, _mm256_set1_epi32(8));
+  }
+  float uminmem[8], usubminmem[8];
+  int32_t j1mem[8], j2mem[8];
+  _mm256_storeu_ps(uminmem, uminvec);
+  _mm256_storeu_ps(usubminmem, usubminvec);
+  _mm256_storeu_si256(reinterpret_cast<__m256i*>(j1mem), j1vec);
+  _mm256_storeu_si256(reinterpret_cast<__m256i*>(j2mem), j2vec);
+
+  idx j1 = -1, j2 = -1;
+  float umin = std::numeric_limits<float>::max(),
+        usubmin = std::numeric_limits<float>::max();
+  for (int vi = 0; vi < 8; vi++) {
+    float h = uminmem[vi];
+    if (h < usubmin) {
+      idx jnew = j1mem[vi];
+      if (h >= umin) {
+        usubmin = h;
+        j2 = jnew;
+      } else {
+        usubmin = umin;
+        umin = h;
+        j2 = j1;
+        j1 = jnew;
+      }
+    }
+  }
+  for (int vi = 0; vi < 8; vi++) {
+    float h = usubminmem[vi];
+    if (h < usubmin) {
+      usubmin = h;
+      j2 = j2mem[vi];
+    }
+  }
+  for (idx j = dim & 0xFFFFFFF8u; j < dim; j++) {
+    float h = assigncost[i * dim + j] - v[j];
+    if (h < usubmin) {
+      if (h >= umin) {
+        usubmin = h;
+        j2 = j;
+      } else {
+        usubmin = umin;
+        umin = h;
+        j2 = j1;
+        j1 = j;
+      }
+    }
+  }
+  return std::make_tuple(umin, usubmin, j1, j2);
+}
+
+template <typename idx>
+__attribute__((always_inline)) inline std::tuple<double, double, idx, idx> find_umins(
+    idx dim, idx i, const double *assigncost, const double *v) {
+  __m256i idxvec = _mm256_setr_epi64x(0, 1, 2, 3);
+  __m256i j1vec = _mm256_set1_epi64x(-1), j2vec = _mm256_set1_epi64x(-1);
+  __m256d uminvec = _mm256_set1_pd(std::numeric_limits<double>::max()),
+          usubminvec = _mm256_set1_pd(std::numeric_limits<double>::max());
+  for (idx j = 0; j < dim - 3; j += 4) {
+    __m256d acvec = _mm256_loadu_pd(assigncost + i * dim + j);
+    __m256d vvec = _mm256_loadu_pd(v + j);
+    __m256d h = _mm256_sub_pd(acvec, vvec);
+    __m256d cmp = _mm256_cmp_pd(h, uminvec, _CMP_LE_OQ);
+    usubminvec = _mm256_blendv_pd(usubminvec, uminvec, cmp);
+    j2vec = _mm256_blendv_epi8(
+        j2vec, j1vec, reinterpret_cast<__m256i>(cmp));
+    uminvec = _mm256_blendv_pd(uminvec, h, cmp);
+    j1vec = _mm256_blendv_epi8(
+        j1vec, idxvec, reinterpret_cast<__m256i>(cmp));
+    cmp = _mm256_andnot_pd(cmp, _mm256_cmp_pd(h, usubminvec, _CMP_LT_OQ));
+    usubminvec = _mm256_blendv_pd(usubminvec, h, cmp);
+    j2vec = _mm256_blendv_epi8(
+        j2vec, idxvec, reinterpret_cast<__m256i>(cmp));
+    idxvec = _mm256_add_epi64(idxvec, _mm256_set1_epi64x(4));
+  }
+  double uminmem[4], usubminmem[4];
+  int64_t j1mem[4], j2mem[4];
+  _mm256_storeu_pd(uminmem, uminvec);
+  _mm256_storeu_pd(usubminmem, usubminvec);
+  _mm256_storeu_si256(reinterpret_cast<__m256i*>(j1mem), j1vec);
+  _mm256_storeu_si256(reinterpret_cast<__m256i*>(j2mem), j2vec);
+
+  idx j1 = -1, j2 = -1;
+  double umin = std::numeric_limits<double>::max(),
+         usubmin = std::numeric_limits<double>::max();
+  for (int vi = 0; vi < 4; vi++) {
+    double h = uminmem[vi];
+    if (h < usubmin) {
+      idx jnew = j1mem[vi];
+      if (h >= umin) {
+        usubmin = h;
+        j2 = jnew;
+      } else {
+        usubmin = umin;
+        umin = h;
+        j2 = j1;
+        j1 = jnew;
+      }
+    }
+  }
+  for (int vi = 0; vi < 4; vi++) {
+    double h = usubminmem[vi];
+    if (h < usubmin) {
+      usubmin = h;
+      j2 = j2mem[vi];
+    }
+  }
+  for (idx j = dim & 0xFFFFFFFCu; j < dim; j++) {
+    double h = assigncost[i * dim + j] - v[j];
+    if (h < usubmin) {
+      if (h >= umin) {
+        usubmin = h;
+        j2 = j;
+      } else {
+        usubmin = umin;
+        umin = h;
+        j2 = j1;
+        j1 = j;
+      }
+    }
+  }
+  return std::make_tuple(umin, usubmin, j1, j2);
+}
+
+#else  // __AVX__
+
+template <typename idx, typename cost>
+__attribute__((always_inline)) inline std::tuple<cost, cost, idx, idx> find_umins(
+    idx dim, idx i, const cost *assigncost, const cost *v) {
+  cost umin = assigncost[i * dim] - v[0];
+  idx j1 = 0;
+  idx j2 = -1;
+  cost usubmin = std::numeric_limits<cost>::max();
+  for (idx j = 1; j < dim; j++) {
+    cost h = assigncost[i * dim + j] - v[j];
+    if (h < usubmin) {
+      if (h >= umin) {
+        usubmin = h;
+        j2 = j;
+      } else {
+        usubmin = umin;
+        umin = h;
+        j2 = j1;
+        j1 = j;
+      }
+    }
+  }
+  return std::make_tuple(umin, usubmin, j1, j2);
+}
+#endif  // __AVX__
+
 /// @brief Jonker-Volgenant algorithm.
 /// @param dim in problem size
 /// @param assigncost in cost matrix
@@ -82,28 +258,12 @@ cost lap(int dim, const cost *assigncost, bool verbose,
     idx prevnumfree = numfree;
     numfree = 0;  // start list of rows still free after augmenting row reduction.
     while (k < prevnumfree) {
-      idx j2 = -1;
       idx i = free[k++];
 
       // find minimum and second minimum reduced cost over columns.
-      cost umin = assigncost[i * dim] - v[0];
-      idx j1 = 0;
-      cost usubmin = std::numeric_limits<cost>::max();
-      for (idx j = 1; j < dim; j++) {
-        cost h = assigncost[i * dim + j] - v[j];
-        if (h < usubmin) {
-          if (h >= umin) {
-            usubmin = h;
-            j2 = j;
-          } else {
-            usubmin = umin;
-            umin = h;
-            j2 = j1;
-            j1 = j;
-          }
-        }
-      }
-      assert(j2 >= 0);
+      cost umin, usubmin;
+      idx j1, j2;
+      std::tie(umin, usubmin, j1, j2) = find_umins(dim, i, assigncost, v);
 
       idx i0 = colsol[j1];
       if (umin < usubmin) {
