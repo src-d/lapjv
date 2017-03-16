@@ -3,18 +3,54 @@
 #include <limits>
 #include <memory>
 
+template <typename idx, typename cost>
+__attribute__((always_inline)) inline std::tuple<cost, cost, idx, idx>
+find_umins_plain(
+    idx dim, idx i, const cost *__restrict__ assign_cost,
+    const cost *__restrict__ v) {
+  const cost *local_cost = &assign_cost[i * dim];
+  cost umin = local_cost[0] - v[0];
+  idx j1 = 0;
+  idx j2 = -1;
+  cost usubmin = std::numeric_limits<cost>::max();
+  for (idx j = 1; j < dim; j++) {
+    cost h = local_cost[j] - v[j];
+    if (h < usubmin) {
+      if (h >= umin) {
+        usubmin = h;
+        j2 = j;
+      } else {
+        usubmin = umin;
+        umin = h;
+        j2 = j1;
+        j1 = j;
+      }
+    }
+  }
+  return std::make_tuple(umin, usubmin, j1, j2);
+}
+
 #ifdef __AVX2__
 #include <immintrin.h>
 
+#define FLOAT_MIN_DIM 64
+#define DOUBLE_MIN_DIM 100000  // 64-bit code is actually always slower
+
 template <typename idx>
-__attribute__((always_inline)) inline std::tuple<float, float, idx, idx> find_umins(
-    idx dim, idx i, const float *assigncost, const float *v) {
+__attribute__((always_inline)) inline std::tuple<float, float, idx, idx>
+find_umins(
+    idx dim, idx i, const float *__restrict__ assign_cost,
+    const float *__restrict__ v) {
+  if (dim < FLOAT_MIN_DIM) {
+    return find_umins_plain(dim, i, assign_cost, v);
+  }
+  const float *local_cost = assign_cost + i * dim;
   __m256i idxvec = _mm256_setr_epi32(0, 1, 2, 3, 4, 5, 6, 7);
   __m256i j1vec = _mm256_set1_epi32(-1), j2vec = _mm256_set1_epi32(-1);
   __m256 uminvec = _mm256_set1_ps(std::numeric_limits<float>::max()),
          usubminvec = _mm256_set1_ps(std::numeric_limits<float>::max());
   for (idx j = 0; j < dim - 7; j += 8) {
-    __m256 acvec = _mm256_loadu_ps(assigncost + i * dim + j);
+    __m256 acvec = _mm256_loadu_ps(local_cost + j);
     __m256 vvec = _mm256_loadu_ps(v + j);
     __m256 h = _mm256_sub_ps(acvec, vvec);
     __m256 cmp = _mm256_cmp_ps(h, uminvec, _CMP_LE_OQ);
@@ -30,12 +66,12 @@ __attribute__((always_inline)) inline std::tuple<float, float, idx, idx> find_um
         j2vec, idxvec, reinterpret_cast<__m256i>(cmp));
     idxvec = _mm256_add_epi32(idxvec, _mm256_set1_epi32(8));
   }
-  float uminmem[8], usubminmem[8];
-  int32_t j1mem[8], j2mem[8];
-  _mm256_storeu_ps(uminmem, uminvec);
-  _mm256_storeu_ps(usubminmem, usubminvec);
-  _mm256_storeu_si256(reinterpret_cast<__m256i*>(j1mem), j1vec);
-  _mm256_storeu_si256(reinterpret_cast<__m256i*>(j2mem), j2vec);
+  alignas(__m256) float uminmem[8], usubminmem[8];
+  alignas(__m256) int32_t j1mem[8], j2mem[8];
+  _mm256_store_ps(uminmem, uminvec);
+  _mm256_store_ps(usubminmem, usubminvec);
+  _mm256_store_si256(reinterpret_cast<__m256i*>(j1mem), j1vec);
+  _mm256_store_si256(reinterpret_cast<__m256i*>(j2mem), j2vec);
 
   idx j1 = -1, j2 = -1;
   float umin = std::numeric_limits<float>::max(),
@@ -63,7 +99,7 @@ __attribute__((always_inline)) inline std::tuple<float, float, idx, idx> find_um
     }
   }
   for (idx j = dim & 0xFFFFFFF8u; j < dim; j++) {
-    float h = assigncost[i * dim + j] - v[j];
+    float h = local_cost[j] - v[j];
     if (h < usubmin) {
       if (h >= umin) {
         usubmin = h;
@@ -80,14 +116,20 @@ __attribute__((always_inline)) inline std::tuple<float, float, idx, idx> find_um
 }
 
 template <typename idx>
-__attribute__((always_inline)) inline std::tuple<double, double, idx, idx> find_umins(
-    idx dim, idx i, const double *assigncost, const double *v) {
+__attribute__((always_inline)) inline std::tuple<double, double, idx, idx>
+find_umins(
+    idx dim, idx i, const double *__restrict__ assign_cost,
+    const double *__restrict__ v) {
+  if (dim < DOUBLE_MIN_DIM) {
+    return find_umins_plain(dim, i, assign_cost, v);
+  }
+  const double *local_cost = assign_cost + i * dim;
   __m256i idxvec = _mm256_setr_epi64x(0, 1, 2, 3);
   __m256i j1vec = _mm256_set1_epi64x(-1), j2vec = _mm256_set1_epi64x(-1);
   __m256d uminvec = _mm256_set1_pd(std::numeric_limits<double>::max()),
           usubminvec = _mm256_set1_pd(std::numeric_limits<double>::max());
   for (idx j = 0; j < dim - 3; j += 4) {
-    __m256d acvec = _mm256_loadu_pd(assigncost + i * dim + j);
+    __m256d acvec = _mm256_loadu_pd(local_cost + j);
     __m256d vvec = _mm256_loadu_pd(v + j);
     __m256d h = _mm256_sub_pd(acvec, vvec);
     __m256d cmp = _mm256_cmp_pd(h, uminvec, _CMP_LE_OQ);
@@ -103,12 +145,12 @@ __attribute__((always_inline)) inline std::tuple<double, double, idx, idx> find_
         j2vec, idxvec, reinterpret_cast<__m256i>(cmp));
     idxvec = _mm256_add_epi64(idxvec, _mm256_set1_epi64x(4));
   }
-  double uminmem[4], usubminmem[4];
-  int64_t j1mem[4], j2mem[4];
-  _mm256_storeu_pd(uminmem, uminvec);
-  _mm256_storeu_pd(usubminmem, usubminvec);
-  _mm256_storeu_si256(reinterpret_cast<__m256i*>(j1mem), j1vec);
-  _mm256_storeu_si256(reinterpret_cast<__m256i*>(j2mem), j2vec);
+  alignas(__m256d) double uminmem[4], usubminmem[4];
+  alignas(__m256d) int64_t j1mem[4], j2mem[4];
+  _mm256_store_pd(uminmem, uminvec);
+  _mm256_store_pd(usubminmem, usubminvec);
+  _mm256_store_si256(reinterpret_cast<__m256i*>(j1mem), j1vec);
+  _mm256_store_si256(reinterpret_cast<__m256i*>(j2mem), j2vec);
 
   idx j1 = -1, j2 = -1;
   double umin = std::numeric_limits<double>::max(),
@@ -136,7 +178,7 @@ __attribute__((always_inline)) inline std::tuple<double, double, idx, idx> find_
     }
   }
   for (idx j = dim & 0xFFFFFFFCu; j < dim; j++) {
-    double h = assigncost[i * dim + j] - v[j];
+    double h = local_cost[j] - v[j];
     if (h < usubmin) {
       if (h >= umin) {
         usubmin = h;
@@ -154,34 +196,13 @@ __attribute__((always_inline)) inline std::tuple<double, double, idx, idx> find_
 
 #else  // __AVX__
 
-template <typename idx, typename cost>
-__attribute__((always_inline)) inline std::tuple<cost, cost, idx, idx> find_umins(
-    idx dim, idx i, const cost *assigncost, const cost *v) {
-  cost umin = assigncost[i * dim] - v[0];
-  idx j1 = 0;
-  idx j2 = -1;
-  cost usubmin = std::numeric_limits<cost>::max();
-  for (idx j = 1; j < dim; j++) {
-    cost h = assigncost[i * dim + j] - v[j];
-    if (h < usubmin) {
-      if (h >= umin) {
-        usubmin = h;
-        j2 = j;
-      } else {
-        usubmin = umin;
-        umin = h;
-        j2 = j1;
-        j1 = j;
-      }
-    }
-  }
-  return std::make_tuple(umin, usubmin, j1, j2);
-}
+#define find_umins find_umins_plain
+
 #endif  // __AVX__
 
 /// @brief Jonker-Volgenant algorithm.
 /// @param dim in problem size
-/// @param assigncost in cost matrix
+/// @param assign_cost in cost matrix
 /// @param verbose in indicates whether to report the progress to stdout
 /// @param rowsol out column assigned to row in solution / size dim
 /// @param colsol out row assigned to column in solution / size dim
@@ -189,8 +210,9 @@ __attribute__((always_inline)) inline std::tuple<cost, cost, idx, idx> find_umin
 /// @param v out dual variables, column reduction numbers / size dim
 /// @return achieved minimum assignment cost
 template <typename idx, typename cost>
-cost lap(int dim, const cost *assigncost, bool verbose,
-         idx *rowsol, idx *colsol, cost *u, cost *v) {
+cost lap(int dim, const cost *__restrict__ assign_cost, bool verbose,
+         idx *__restrict__ rowsol, idx *__restrict__ colsol,
+         cost *__restrict__ u, cost *__restrict__ v) {
   auto free = std::unique_ptr<idx[]>(new idx[dim]);     // list of unassigned rows.
   auto collist = std::unique_ptr<idx[]>(new idx[dim]);  // list of columns to be scanned in various ways.
   auto matches = std::unique_ptr<idx[]>(new idx[dim]);  // counts how many times a row could be assigned.
@@ -206,11 +228,12 @@ cost lap(int dim, const cost *assigncost, bool verbose,
   // COLUMN REDUCTION
   for (idx j = dim - 1; j >= 0; j--) {   // reverse order gives better results.
     // find minimum cost over rows.
-    cost min = assigncost[j];
+    cost min = assign_cost[j];
     idx imin = 0;
     for (idx i = 1; i < dim; i++) {
-      if (assigncost[i * dim + j] < min) {
-        min = assigncost[i * dim + j];
+      const cost *local_cost = &assign_cost[i * dim];
+      if (local_cost[j] < min) {
+        min = local_cost[j];
         imin = i;
       }
     }
@@ -231,6 +254,7 @@ cost lap(int dim, const cost *assigncost, bool verbose,
   // REDUCTION TRANSFER
   idx numfree = 0;
   for (idx i = 0; i < dim; i++) {
+    const cost *local_cost = &assign_cost[i * dim];
     if (matches[i] == 0) {  // fill list of unassigned 'free' rows.
       free[numfree++] = i;
     } else if (matches[i] == 1) {  // transfer reduction from rows that are assigned once.
@@ -238,8 +262,8 @@ cost lap(int dim, const cost *assigncost, bool verbose,
       cost min = std::numeric_limits<cost>::max();
       for (idx j = 0; j < dim; j++) {
         if (j != j1) {
-          if (assigncost[i * dim + j] - v[j] < min) {
-            min = assigncost[i * dim + j] - v[j];
+          if (local_cost[j] - v[j] < min) {
+            min = local_cost[j] - v[j];
           }
         }
       }
@@ -263,7 +287,7 @@ cost lap(int dim, const cost *assigncost, bool verbose,
       // find minimum and second minimum reduced cost over columns.
       cost umin, usubmin;
       idx j1, j2;
-      std::tie(umin, usubmin, j1, j2) = find_umins(dim, i, assigncost, v);
+      std::tie(umin, usubmin, j1, j2) = find_umins(dim, i, assign_cost, v);
 
       idx i0 = colsol[j1];
       cost vj1_new = v[j1] - (usubmin - umin);
@@ -313,7 +337,7 @@ cost lap(int dim, const cost *assigncost, bool verbose,
     // runs until unassigned column added to shortest path tree.
     #pragma omp simd
     for (idx j = 0; j < dim; j++) {
-      d[j] = assigncost[freerow * dim + j] - v[j];
+      d[j] = assign_cost[freerow * dim + j] - v[j];
       pred[j] = freerow;
       collist[j] = j;  // init column list.
     }
@@ -362,11 +386,11 @@ cost lap(int dim, const cost *assigncost, bool verbose,
         idx j1 = collist[low];
         low++;
         idx i = colsol[j1];
-        cost h = assigncost[i * dim + j1] - v[j1] - min;
-
+        const cost *local_cost = &assign_cost[i * dim];
+        cost h = local_cost[j1] - v[j1] - min;
         for (idx k = up; k < dim; k++) {
           idx j = collist[k];
-          cost v2 = assigncost[i * dim + j] - v[j] - h;
+          cost v2 = local_cost[j] - v[j] - h;
           if (v2 < d[j]) {
             pred[j] = i;
             if (v2 == min) {  // new column found at same minimum value
@@ -413,9 +437,10 @@ cost lap(int dim, const cost *assigncost, bool verbose,
   cost lapcost = 0;
   #pragma omp simd reduction(+:lapcost)
   for (idx i = 0; i < dim; i++) {
+    const cost *local_cost = &assign_cost[i * dim];
     idx j = rowsol[i];
-    u[i] = assigncost[i * dim + j] - v[j];
-    lapcost += assigncost[i * dim + j];
+    u[i] = local_cost[j] - v[j];
+    lapcost += local_cost[j];
   }
   if (verbose) {
     printf("lapjv: optimal cost calculated\n");
