@@ -266,10 +266,12 @@ cost lap(int dim, const cost *assigncost, bool verbose,
       std::tie(umin, usubmin, j1, j2) = find_umins(dim, i, assigncost, v);
 
       idx i0 = colsol[j1];
-      if (umin < usubmin) {
+      cost vj1_new = v[j1] - (usubmin - umin);
+      bool vj1_lowers = vj1_new < v[j1];  // the trick to eliminate the epsilon bug
+      if (vj1_lowers) {
         // change the reduction of the minimum column to increase the minimum
         // reduced cost in the row to the subminimum.
-        v[j1] = v[j1] - (usubmin - umin);
+        v[j1] = vj1_new;
       } else if (i0 >= 0) {  // minimum and subminimum equal.
         // minimum column j1 is assigned.
         // swap columns j1 and j2, as j2 may be unassigned.
@@ -282,7 +284,7 @@ cost lap(int dim, const cost *assigncost, bool verbose,
       colsol[j1] = i;
 
       if (i0 >= 0) {  // minimum column j1 assigned earlier.
-        if (umin < usubmin) {
+        if (vj1_lowers) {
           // put in current k, and go back to that k.
           // continue augmenting path i - j1 with i0.
           free[--k] = i0;
