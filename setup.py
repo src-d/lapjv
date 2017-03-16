@@ -1,3 +1,4 @@
+import platform
 from setuptools import setup, Extension
 import numpy
 
@@ -12,9 +13,10 @@ setup(
     url="https://github.com/src-d/lapjv",
     download_url="https://github.com/src-d/lapjv",
     ext_modules=[Extension("lapjv", sources=["python.cc"], extra_compile_args=[
-        "-fopenmp", "-std=c++11", "-march=native", "-ftree-vectorize"])],
+        "-fopenmp" if platform.system() != "Darwin" else "", "-std=c++11",
+        "-march=native", "-ftree-vectorize"],
+        include_dirs=[numpy.get_include()])],
     install_requires=["numpy"],
-    include_dirs = [numpy.get_include()],
     classifiers=[
         "Development Status :: 4 - Beta",
         "Intended Audience :: Developers",

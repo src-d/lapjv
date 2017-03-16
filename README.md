@@ -18,7 +18,7 @@ See this awesome notebook for the details about why LAP matters:
 [CloudToGrid](https://github.com/kylemcdonald/CloudToGrid/blob/master/CloudToGrid.ipynb).
 
 Jonker-Volgenant algorithm is described in the paper:
- 
+
 R. Jonker and A. Volgenant, "A Shortest Augmenting Path Algorithm for Dense and Sparse Linear Assignment Problems," _Computing_, vol. 38, pp. 325-340, 1987.
 
 This paper is not publicly available though a brief description exists on
@@ -34,6 +34,7 @@ Installing
 ```
 pip3 install lapjv
 ```
+Tested on Linux and macOS.
 
 Usage
 -----
