@@ -9,6 +9,8 @@ the original thanks to the optimization of the augmenting row reduction phase
 using Intel AVX intrinsics. It is a native Python 3 module and does
 not work with Python 2.x, stick to pyLAPJV otherwise.
 
+[![Blog post](https://blog.sourced.tech/post/lapjv/mapping.png)](https://blog.sourced.tech/post/lapjv/)
+
 [Linear assignment problem](https://en.wikipedia.org/wiki/Assignment_problem)
 is the bijection between two sets with equal cardinality which optimizes the sum
 of the individual mapping costs taken from the fixed cost matrix. It naturally
