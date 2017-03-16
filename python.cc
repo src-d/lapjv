@@ -63,16 +63,19 @@ using pyarray = _pyobj<PyArrayObject>;
 static PyObject *py_lapjv(PyObject *self, PyObject *args, PyObject *kwargs) {
   PyObject *cost_matrix_obj;
   int verbose = 0;
-  static const char *kwlist[] = {"cost_matrix", "verbose", NULL};
+  int force_doubles = 0;
+  static const char *kwlist[] = {
+      "cost_matrix", "verbose", "force_doubles", NULL};
   if (!PyArg_ParseTupleAndKeywords(
-      args, kwargs, "O|p", const_cast<char**>(kwlist),
-      &cost_matrix_obj, &verbose)) {
+      args, kwargs, "O|pb", const_cast<char**>(kwlist),
+      &cost_matrix_obj, &verbose, &force_doubles)) {
     return NULL;
   }
   pyarray cost_matrix_array;
   bool float32 = true;
   cost_matrix_array.reset(PyArray_FROM_OTF(
-      cost_matrix_obj, NPY_FLOAT32, NPY_ARRAY_IN_ARRAY));
+      cost_matrix_obj, NPY_FLOAT32,
+      NPY_ARRAY_IN_ARRAY | (force_doubles? 0 : NPY_ARRAY_FORCECAST)));
   if (!cost_matrix_array) {
     PyErr_Clear();
     float32 = false;
