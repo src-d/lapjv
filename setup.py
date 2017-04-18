@@ -13,8 +13,8 @@ setup(
     url="https://github.com/src-d/lapjv",
     download_url="https://github.com/src-d/lapjv",
     ext_modules=[Extension("lapjv", sources=["python.cc"], extra_compile_args=[
-        "-fopenmp" if platform.system() != "Darwin" else "", "-std=c++11",
-        "-march=native", "-ftree-vectorize"],
+        "/openmp" if platform.system() != "Darwin" else "", "/std:c++latest",
+        "/arch:AVX2"],
         include_dirs=[numpy.get_include()])],
     install_requires=["numpy"],
     classifiers=[

@@ -3,11 +3,22 @@
 #include <limits>
 #include <memory>
 
+#ifdef __GNUC__
+#define always_inline __attribute__((always_inline)) inline
+#define restrict __restrict__
+#elif _WIN32
+#define always_inline __forceinline
+#define restrict __restrict
+#else
+#define always_inline inline
+#define restrict
+#endif
+
 template <typename idx, typename cost>
-__attribute__((always_inline)) inline std::tuple<cost, cost, idx, idx>
+always_inline std::tuple<cost, cost, idx, idx>
 find_umins_plain(
-    idx dim, idx i, const cost *__restrict__ assign_cost,
-    const cost *__restrict__ v) {
+    idx dim, idx i, const cost *restrict assign_cost,
+    const cost *restrict v) {
   const cost *local_cost = &assign_cost[i * dim];
   cost umin = local_cost[0] - v[0];
   idx j1 = 0;
@@ -30,17 +41,18 @@ find_umins_plain(
   return std::make_tuple(umin, usubmin, j1, j2);
 }
 
-#ifdef __AVX2__
+// MSVC++ has an awful AVX2 support which does not allow to compile the code
+#if defined(__AVX2__) && !defined(_WIN32)
 #include <immintrin.h>
 
 #define FLOAT_MIN_DIM 64
 #define DOUBLE_MIN_DIM 100000  // 64-bit code is actually always slower
 
 template <typename idx>
-__attribute__((always_inline)) inline std::tuple<float, float, idx, idx>
+always_inline std::tuple<float, float, idx, idx>
 find_umins(
-    idx dim, idx i, const float *__restrict__ assign_cost,
-    const float *__restrict__ v) {
+    idx dim, idx i, const float *restrict assign_cost,
+    const float *restrict v) {
   if (dim < FLOAT_MIN_DIM) {
     return find_umins_plain(dim, i, assign_cost, v);
   }
@@ -116,10 +128,10 @@ find_umins(
 }
 
 template <typename idx>
-__attribute__((always_inline)) inline std::tuple<double, double, idx, idx>
+always_inline std::tuple<double, double, idx, idx>
 find_umins(
-    idx dim, idx i, const double *__restrict__ assign_cost,
-    const double *__restrict__ v) {
+    idx dim, idx i, const double *restrict assign_cost,
+    const double *restrict v) {
   if (dim < DOUBLE_MIN_DIM) {
     return find_umins_plain(dim, i, assign_cost, v);
   }
@@ -210,9 +222,9 @@ find_umins(
 /// @param v out dual variables, column reduction numbers / size dim
 /// @return achieved minimum assignment cost
 template <typename idx, typename cost>
-cost lap(int dim, const cost *__restrict__ assign_cost, bool verbose,
-         idx *__restrict__ rowsol, idx *__restrict__ colsol,
-         cost *__restrict__ u, cost *__restrict__ v) {
+cost lap(int dim, const cost *restrict assign_cost, bool verbose,
+         idx *restrict rowsol, idx *restrict colsol,
+         cost *restrict u, cost *restrict v) {
   auto free = std::unique_ptr<idx[]>(new idx[dim]);     // list of unassigned rows.
   auto collist = std::unique_ptr<idx[]>(new idx[dim]);  // list of columns to be scanned in various ways.
   auto matches = std::unique_ptr<idx[]>(new idx[dim]);  // counts how many times a row could be assigned.
@@ -220,7 +232,9 @@ cost lap(int dim, const cost *__restrict__ assign_cost, bool verbose,
   auto pred = std::unique_ptr<idx[]>(new idx[dim]);     // row-predecessor of column in augmenting/alternating path.
 
   // init how many times a row will be assigned in the column reduction.
+  #if _OPENMP >= 201307
   #pragma omp simd
+  #endif
   for (idx i = 0; i < dim; i++) {
     matches[i] = 0;
   }
@@ -335,7 +349,9 @@ cost lap(int dim, const cost *__restrict__ assign_cost, bool verbose,
 
     // Dijkstra shortest path algorithm.
     // runs until unassigned column added to shortest path tree.
+    #if _OPENMP >= 201307
     #pragma omp simd
+    #endif
     for (idx j = 0; j < dim; j++) {
       d[j] = assign_cost[freerow * dim + j] - v[j];
       pred[j] = freerow;
@@ -411,7 +427,9 @@ cost lap(int dim, const cost *__restrict__ assign_cost, bool verbose,
     } while (!unassigned_found);
 
     // update column prices.
+    #if _OPENMP >= 201307
     #pragma omp simd
+    #endif
     for (idx k = 0; k <= last; k++) {
       idx j1 = collist[k];
       v[j1] = v[j1] + d[j1] - min;
@@ -435,7 +453,9 @@ cost lap(int dim, const cost *__restrict__ assign_cost, bool verbose,
 
   // calculate optimal cost.
   cost lapcost = 0;
+  #if _OPENMP >= 201307
   #pragma omp simd reduction(+:lapcost)
+  #endif
   for (idx i = 0; i < dim; i++) {
     const cost *local_cost = &assign_cost[i * dim];
     idx j = rowsol[i];
