@@ -2,6 +2,12 @@ import platform
 from setuptools import setup, Extension
 import numpy
 
+CXX_ARGS = {
+    "Darwin": ["-std=c++11", "-march=native", "-ftree-vectorize"],
+    "Linux": ["-fopenmp", "-std=c++11", "-march=native", "-ftree-vectorize"],
+    "Windows": ["/openmp", "/std:c++latest", "/arch:AVX2"]
+}
+
 setup(
     name="lapjv",
     description="Linear sum assignment problem solver using Jonker-Volgenant "
@@ -12,10 +18,10 @@ setup(
     author_email="vadim@sourced.tech",
     url="https://github.com/src-d/lapjv",
     download_url="https://github.com/src-d/lapjv",
-    ext_modules=[Extension("lapjv", sources=["python.cc"], extra_compile_args=[
-        "/openmp" if platform.system() != "Darwin" else "", "/std:c++latest",
-        "/arch:AVX2"],
-        include_dirs=[numpy.get_include()])],
+    ext_modules=[Extension("lapjv",
+                           sources=["python.cc"],
+                           extra_compile_args=CXX_ARGS[platform.system()],
+                           include_dirs=[numpy.get_include()])],
     install_requires=["numpy"],
     classifiers=[
         "Development Status :: 4 - Beta",
