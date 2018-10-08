@@ -6,7 +6,7 @@ Linear Assignment Problem solver using Jonker-Volgenant algorithm
 This project is the rewrite of [pyLAPJV](https://github.com/hrldcpr/pyLAPJV) which
 supports Python 3 and updates the core code. The performance is twice as high as
 the original thanks to the optimization of the augmenting row reduction phase
-using Intel AVX intrinsics. It is a native Python 3 module and does
+using Intel AVX2 intrinsics. It is a native Python 3 module and does
 not work with Python 2.x, stick to pyLAPJV otherwise.
 
 [![Blog post](https://blog.sourced.tech/post/lapjv/mapping.png)](https://blog.sourced.tech/post/lapjv/)
@@ -45,6 +45,15 @@ Refer to [test.py](test.py) for the complete code.
 ```
 from lapjv import lapjv
 row_ind, col_ind, _ = lapjv(cost_matrix)
+```
+
+Illegal instruction
+-------------------
+
+This error appears if your CPU does not support the AVX2 instruction set. We do not ship builds for different CPUs so you need to build the package yourself:
+
+```
+pip3 install git+https://github.com/src-d/lapjv
 ```
 
 License
