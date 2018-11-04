@@ -58,4 +58,4 @@ pip3 install git+https://github.com/src-d/lapjv
 
 License
 -------
-MIT.
+MIT Licensed,see [LICENSE](LICENSE)
