@@ -1,8 +1,9 @@
 import unittest
-from lapjv import lapjv
-from numpy import random, meshgrid, linspace, dstack, sqrt, array, \
-    float32, float64
+
+from numpy import array, dstack, float32, float64, linspace, meshgrid, random, sqrt
 from scipy.spatial.distance import cdist
+
+from lapjv import lapjv
 
 
 class LapjvTests(unittest.TestCase):
@@ -57,6 +58,7 @@ class LapjvTests(unittest.TestCase):
         row_ind_lapjv64, col_ind_lapjv64, _ = lapjv(cost, verbose=True, force_doubles=True)
         self.assertTrue((row_ind_lapjv32 == row_ind_lapjv64).all())
         self.assertTrue((col_ind_lapjv32 == col_ind_lapjv64).all())
+
 
 if __name__ == "__main__":
     unittest.main()
