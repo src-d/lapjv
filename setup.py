@@ -1,7 +1,6 @@
 from pathlib import Path
 import platform
 
-import numpy
 from setuptools import Extension, setup
 
 CXX_ARGS = {
@@ -14,6 +13,15 @@ project_root = Path(__file__).parent
 
 with open(project_root / "README.md", encoding="utf-8") as f:
     long_description = f.read()
+
+
+class get_numpy_include:
+    """Defer numpy.get_include() until after numpy is installed."""
+
+    def __str__(self):
+        import numpy
+        return numpy.get_include()
+
 
 setup(
     name="lapjv",
@@ -29,9 +37,10 @@ setup(
     ext_modules=[Extension("lapjv",
                            sources=["python.cc"],
                            extra_compile_args=CXX_ARGS[platform.system()],
-                           include_dirs=[numpy.get_include()])],
+                           include_dirs=[get_numpy_include()])],
     install_requires=["numpy>=1.0.0"],
     tests_require=["scipy>=1.0.0"],
+    setup_requires=["numpy>=1.0.0"],
     classifiers=[
         "Development Status :: 5 - Production/Stable",
         "Intended Audience :: Developers",
