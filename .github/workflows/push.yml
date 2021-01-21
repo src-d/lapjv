@@ -67,6 +67,8 @@ jobs:
     steps:
     - name: actions/checkout
       uses: actions/checkout@v2
+      with:
+        persist-credentials: false
     - name: current_version
       run: echo "current_version=$(grep 'version=' setup.py | cut -d\" -f2)" >> $GITHUB_ENV
     - name: FragileTech/bump-version
