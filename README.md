@@ -1,4 +1,4 @@
-[![Build Status](https://travis-ci.org/src-d/lapjv.svg?branch=master)](https://travis-ci.org/src-d/lapjv) [![PyPI](https://img.shields.io/pypi/v/lapjv.svg)](https://pypi.python.org/pypi/lapjv)
+[![Build Status](https://github.com/src-d/lapjv/workflows/Push/badge.svg?branch=master)](https://github.com/src-d/lapjv/actions) [![PyPI](https://img.shields.io/pypi/v/lapjv.svg)](https://pypi.python.org/pypi/lapjv)
 
 Linear Assignment Problem solver using Jonker-Volgenant algorithm
 ==================================================================
@@ -9,7 +9,7 @@ the original thanks to the optimization of the augmenting row reduction phase
 using Intel AVX2 intrinsics. It is a native Python 3 module and does
 not work with Python 2.x, stick to pyLAPJV otherwise.
 
-[![Blog post](https://blog.sourced.tech/post/lapjv/mapping.png)](https://blog.sourced.tech/post/lapjv/)
+[![Blog post](doc/mapping.png)](http://web.archive.org/web/20180611012448/https://blog.sourced.tech/post/lapjv//)
 
 [Linear assignment problem](https://en.wikipedia.org/wiki/Assignment_problem)
 is the bijection between two sets with equal cardinality which optimizes the sum
