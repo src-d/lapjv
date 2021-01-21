@@ -1,0 +1,80 @@
+name: Push
+
+on:
+  push:
+    branches:
+    - master
+  pull_request:
+
+env:
+  PIP_CACHE: |
+    ~/.cache/pip
+    ~/.local/bin
+    ~/.local/lib/python3.*/site-packages
+
+jobs:
+  flake8:
+    name: flake8
+    if: "!contains(github.event.head_commit.message, 'Bump version')"
+    runs-on: ubuntu-20.04
+    steps:
+    - name: actions/checkout
+      uses: actions/checkout@v2
+    - name: actions/cache
+      uses: actions/cache@v2
+      with:
+        path: ${{ env.PIP_CACHE }}
+        key: ubuntu-20.04-pip-lint-${{ hashFiles('lint-requirements.txt') }}
+        restore-keys: ubuntu-20.04-pip-lint-
+    - name: pip lint-requirements.txt
+      run: |
+        set -x
+        pip3 install -r lint-requirements.txt --no-warn-script-location
+        echo "$HOME/.local/bin" >> $GITHUB_PATH
+    - name: flake8
+      run: |
+        set -x
+        flake8
+  test:
+    name: Unit tests
+    if: "!contains(github.event.head_commit.message, 'Bump version')"
+    runs-on: ubuntu-20.04
+    steps:
+    - name: actions/checkout
+      uses: actions/checkout@v2
+    - name: actions/cache pip
+      uses: actions/cache@v2
+      with:
+        path: ${{ env.PIP_CACHE }}
+        key: ubuntu-20.04-pip-main-${{ hashFiles('requirements.txt', 'test-requirements.txt') }}
+        restore-keys: ubuntu-20.04-pip-main-
+    - name: pip requirements.txt
+      run: |
+        set -x
+        pip3 install -r requirements.txt --no-warn-script-location
+        pip3 install -r test-requirements.txt --no-warn-script-location
+        pip3 install -e .
+        echo "$HOME/.local/bin" >> $GITHUB_PATH
+    - name: test
+      run: |
+        set -x
+        python3 -m unittest discover .
+  bump_version:
+    name: Bump the version
+    needs: [ flake8, test ]
+    if: "!contains(github.event.head_commit.message, 'Bump version') && github.ref == 'refs/heads/master'"
+    runs-on: ubuntu-20.04
+    steps:
+    - name: actions/checkout
+      uses: actions/checkout@v2
+    - name: current_version
+      run: echo "current_version=$(grep 'version=' setup.py | cut -d\" -f2)" >> $GITHUB_ENV
+    - name: FragileTech/bump-version
+      uses: FragileTech/bump-version@main
+      with:
+        current_version: "${{ env.current_version }}"
+        files: setup.py
+        commit_name: Vadim Markovtsev
+        commit_email: gmarkhor@gmail.com
+        login: vmarkovtsev
+        token: "${{ secrets.BUMP_VERSION_TOKEN }}"

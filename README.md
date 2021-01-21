@@ -47,6 +47,14 @@ from lapjv import lapjv
 row_ind, col_ind, _ = lapjv(cost_matrix)
 ```
 
+The assignment matrix by row is `row_ind`: the value at n-th place is the assigned column index to the n-th row.
+`col_ind` is the reverse of `row_ind`: mapping from columns to row indexes.
+
+Note: a bijection is only possible for sets with equal cardinality. If you need to map A vectors to B vectors,
+derive the square symmetric (A+B) x (A+B) matrix: take the first A rows and columns from A and
+the remaining [A..A+B] rows and columns from B. Set the A->A and B->B costs to some maximum distance value,
+big enough so that you don't see assignment errors.
+
 Illegal instruction
 -------------------
 
@@ -55,6 +63,11 @@ This error appears if your CPU does not support the AVX2 instruction set. We do 
 ```
 pip3 install git+https://github.com/src-d/lapjv
 ```
+
+NAN-s
+-----
+
+NAN-s in the cost matrix lead to completely undefined result. It is the caller's responsibility to check them.
 
 License
 -------

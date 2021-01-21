@@ -1,0 +1,10 @@
+[flake8]
+ignore=D100,D104,D301,W503,W504
+exclude=doc
+max-line-length=99
+inline-quotes="
+import-order-style=appnexus
+application-package-names=lapjv
+per-file-ignores=
+    setup.py:D
+    test.py*:D
