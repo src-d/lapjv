@@ -28,7 +28,7 @@ setup(
     description="Linear sum assignment problem solver using Jonker-Volgenant algorithm.",
     long_description=long_description,
     long_description_content_type="text/markdown",
-    version="1.3.8",
+    version="1.3.9",
     license="MIT",
     author="Vadim Markovtsev",
     author_email="gmarkhor@gmail.com",
