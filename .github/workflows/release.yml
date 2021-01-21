@@ -20,7 +20,7 @@ jobs:
       run: |
         python3 setup.py bdist_wheel sdist --format=gztar
         mv dist/*.whl .
-        auditwheel repair -w dist *.whl
+        auditwheel repair --plat linux_x86_64 -w dist *.whl
         rm *.whl
         ls
         ls dist
