@@ -3,7 +3,10 @@
 #include <Python.h>
 #define NPY_NO_DEPRECATED_API NPY_1_7_API_VERSION
 #include <numpy/arrayobject.h>
+#include "cpuid.h"
 #include "lap.h"
+
+static SIMDFlags simd_flags = SIMDFlags();
 
 static char module_docstring[] =
     "This module wraps LAPJV - Jonker-Volgenant linear sum assignment algorithm.";
@@ -59,6 +62,28 @@ class _pyobj : public pyobj_parent<O> {
 
 using pyobj = _pyobj<PyObject>;
 using pyarray = _pyobj<PyArrayObject>;
+
+template <typename F>
+static always_inline double call_lap(int dim, const void *restrict cost_matrix, bool verbose,
+                                     int *restrict row_ind, int *restrict col_ind,
+                                     void *restrict u, void *restrict v) {
+  double lapcost;
+  Py_BEGIN_ALLOW_THREADS
+  bool hasAVX2 = simd_flags.hasAVX2();
+  if (verbose) {
+    printf("AVX2: %s\n", hasAVX2? "enabled" : "disabled");
+  }
+  auto cost_matrix_typed = reinterpret_cast<const F*>(cost_matrix);
+  auto u_typed = reinterpret_cast<F*>(u);
+  auto v_typed = reinterpret_cast<F*>(v);
+  if (hasAVX2) {
+    lapcost = lap<true>(dim, cost_matrix_typed, verbose, row_ind, col_ind, u_typed, v_typed);
+  } else {
+    lapcost = lap<false>(dim, cost_matrix_typed, verbose, row_ind, col_ind, u_typed, v_typed);
+  }
+  Py_END_ALLOW_THREADS
+  return lapcost;
+}
 
 static PyObject *py_lapjv(PyObject *self, PyObject *args, PyObject *kwargs) {
   PyObject *cost_matrix_obj;
@@ -116,20 +141,12 @@ static PyObject *py_lapjv(PyObject *self, PyObject *args, PyObject *kwargs) {
   pyarray v_array(PyArray_SimpleNew(
       1, ret_dims, float32? NPY_FLOAT32 : NPY_FLOAT64));
   double lapcost;
+  auto u = PyArray_DATA(u_array.get());
+  auto v = PyArray_DATA(v_array.get());
   if (float32) {
-    auto u = reinterpret_cast<float*>(PyArray_DATA(u_array.get()));
-    auto v = reinterpret_cast<float*>(PyArray_DATA(v_array.get()));
-    Py_BEGIN_ALLOW_THREADS
-    lapcost = lap(dim, reinterpret_cast<float*>(cost_matrix), verbose,
-                  row_ind, col_ind, u, v);
-    Py_END_ALLOW_THREADS
+    lapcost = call_lap<float>(dim, cost_matrix, verbose, row_ind, col_ind, u, v);
   } else {
-    auto u = reinterpret_cast<double*>(PyArray_DATA(u_array.get()));
-    auto v = reinterpret_cast<double*>(PyArray_DATA(v_array.get()));
-    Py_BEGIN_ALLOW_THREADS
-    lapcost = lap(dim, reinterpret_cast<double*>(cost_matrix), verbose,
-                  row_ind, col_ind, u, v);
-    Py_END_ALLOW_THREADS
+    lapcost = call_lap<double>(dim, cost_matrix, verbose, row_ind, col_ind, u, v);
   }
   return Py_BuildValue("(OO(dOO))",
                        row_ind_array.get(), col_ind_array.get(), lapcost,
