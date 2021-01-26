@@ -1,1 +1,2 @@
 include lap.h
+include cpuid.h
