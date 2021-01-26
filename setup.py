@@ -4,8 +4,8 @@ import platform
 from setuptools import Extension, setup
 
 CXX_ARGS = {
-    "Darwin": ["-std=c++11", "-march=native", "-ftree-vectorize"],
-    "Linux": ["-fopenmp", "-std=c++11", "-march=native", "-ftree-vectorize"],
+    "Darwin": ["-std=c++17", "-march=native", "-ftree-vectorize"],
+    "Linux": ["-fopenmp", "-std=c++17", "-march=native", "-ftree-vectorize"],
     "Windows": ["/openmp", "/std:c++latest", "/arch:AVX2"],
 }
 

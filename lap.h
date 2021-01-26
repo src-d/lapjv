@@ -3,6 +3,9 @@
 #include <limits>
 #include <memory>
 
+#include <immintrin.h>
+
+
 #ifdef __GNUC__
 #define always_inline __attribute__((always_inline)) inline
 #define restrict __restrict__
@@ -14,9 +17,10 @@
 #define restrict
 #endif
 
+
 template <typename idx, typename cost>
 always_inline std::tuple<cost, cost, idx, idx>
-find_umins_plain(
+find_umins_regular(
     idx dim, idx i, const cost *restrict assign_cost,
     const cost *restrict v) {
   const cost *local_cost = &assign_cost[i * dim];
@@ -41,20 +45,17 @@ find_umins_plain(
   return std::make_tuple(umin, usubmin, j1, j2);
 }
 
-// MSVC++ has an awful AVX2 support which does not allow to compile the code
-#if defined(__AVX2__) && !defined(_WIN32)
-#include <immintrin.h>
-
+// These are not constexpr because of typename idx
 #define FLOAT_MIN_DIM 64
 #define DOUBLE_MIN_DIM 100000  // 64-bit code is actually always slower
 
 template <typename idx>
 always_inline std::tuple<float, float, idx, idx>
-find_umins(
+find_umins_avx2(
     idx dim, idx i, const float *restrict assign_cost,
     const float *restrict v) {
   if (dim < FLOAT_MIN_DIM) {
-    return find_umins_plain(dim, i, assign_cost, v);
+    return find_umins_regular(dim, i, assign_cost, v);
   }
   const float *local_cost = assign_cost + i * dim;
   __m256i idxvec = _mm256_setr_epi32(0, 1, 2, 3, 4, 5, 6, 7);
@@ -129,11 +130,11 @@ find_umins(
 
 template <typename idx>
 always_inline std::tuple<double, double, idx, idx>
-find_umins(
+find_umins_avx2(
     idx dim, idx i, const double *restrict assign_cost,
     const double *restrict v) {
   if (dim < DOUBLE_MIN_DIM) {
-    return find_umins_plain(dim, i, assign_cost, v);
+    return find_umins_regular(dim, i, assign_cost, v);
   }
   const double *local_cost = assign_cost + i * dim;
   __m256i idxvec = _mm256_setr_epi64x(0, 1, 2, 3);
@@ -206,13 +207,19 @@ find_umins(
   return std::make_tuple(umin, usubmin, j1, j2);
 }
 
-#else  // __AVX__
+template <bool avx2, typename idx, typename cost>
+always_inline std::tuple<cost, cost, idx, idx>
+find_umins(
+    idx dim, idx i, const cost *restrict assign_cost,
+    const cost *restrict v) {
+  if constexpr(avx2) {
+    return find_umins_avx2(dim, i, assign_cost, v);
+  } else {
+    return find_umins_regular(dim, i, assign_cost, v);
+  }
+}
 
-#define find_umins find_umins_plain
-
-#endif  // __AVX__
-
-/// @brief Jonker-Volgenant algorithm.
+/// @brief Exact Jonker-Volgenant algorithm.
 /// @param dim in problem size
 /// @param assign_cost in cost matrix
 /// @param verbose in indicates whether to report the progress to stdout
@@ -221,7 +228,7 @@ find_umins(
 /// @param u out dual variables, row reduction numbers / size dim
 /// @param v out dual variables, column reduction numbers / size dim
 /// @return achieved minimum assignment cost
-template <typename idx, typename cost>
+template <bool avx2, typename idx, typename cost>
 cost lap(int dim, const cost *restrict assign_cost, bool verbose,
          idx *restrict rowsol, idx *restrict colsol,
          cost *restrict u, cost *restrict v) {
@@ -301,7 +308,7 @@ cost lap(int dim, const cost *restrict assign_cost, bool verbose,
       // find minimum and second minimum reduced cost over columns.
       cost umin, usubmin;
       idx j1, j2;
-      std::tie(umin, usubmin, j1, j2) = find_umins(dim, i, assign_cost, v);
+      std::tie(umin, usubmin, j1, j2) = find_umins<avx2>(dim, i, assign_cost, v);
 
       idx i0 = colsol[j1];
       cost vj1_new = v[j1] - (usubmin - umin);
