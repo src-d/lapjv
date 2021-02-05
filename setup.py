@@ -40,7 +40,7 @@ setup(
                            include_dirs=[get_numpy_include()])],
     install_requires=["numpy>=1.0.0"],
     tests_require=["scipy>=1.0.0"],
-    setup_requires=["numpy>=1.0.0"],
+    setup_requires=["numpy>=1.20.0"],
     classifiers=[
         "Development Status :: 5 - Production/Stable",
         "Intended Audience :: Developers",
