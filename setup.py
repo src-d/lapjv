@@ -38,7 +38,7 @@ setup(
                            sources=["python.cc"],
                            extra_compile_args=CXX_ARGS[platform.system()],
                            include_dirs=[get_numpy_include()])],
-    install_requires=["numpy>=1.0.0"],
+    install_requires=["numpy>=1.20.0"],
     tests_require=["scipy>=1.0.0"],
     setup_requires=["numpy>=1.20.0"],
     classifiers=[
