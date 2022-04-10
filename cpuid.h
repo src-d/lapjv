@@ -1,6 +1,9 @@
 #pragma once
 
 #ifdef _WIN32
+  #ifdef _MSC_VER
+    #include<intrin.h>
+  #endif
   #define CPUID(info, x)  __cpuidex(info, x, 0)
 #else
   #include <cpuid.h>
