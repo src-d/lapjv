@@ -1,10 +1,8 @@
 #pragma once
 
-#ifdef _WIN32
-  #ifdef _MSC_VER
-    #include<intrin.h>
-  #endif
-  #define CPUID(info, x)  __cpuidex(info, x, 0)
+#ifdef _MSC_VER
+  #include<intrin.h>
+  #define CPUID(info, x)  __cpuidex(reinterpret_cast<int *>(info), x, 0)
 #else
   #include <cpuid.h>
   #define CPUID(info, x)  __cpuid_count(x, 0, info[0], info[1], info[2], info[3])
