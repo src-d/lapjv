@@ -69,14 +69,14 @@ find_umins_avx2(
     __m256 cmp = _mm256_cmp_ps(h, uminvec, _CMP_LE_OQ);
     usubminvec = _mm256_blendv_ps(usubminvec, uminvec, cmp);
     j2vec = _mm256_blendv_epi8(
-        j2vec, j1vec, reinterpret_cast<__m256i>(cmp));
+        j2vec, j1vec, _mm256_castps_si256(cmp));
     uminvec = _mm256_blendv_ps(uminvec, h, cmp);
     j1vec = _mm256_blendv_epi8(
-        j1vec, idxvec, reinterpret_cast<__m256i>(cmp));
+        j1vec, idxvec, _mm256_castps_si256(cmp));
     cmp = _mm256_andnot_ps(cmp, _mm256_cmp_ps(h, usubminvec, _CMP_LT_OQ));
     usubminvec = _mm256_blendv_ps(usubminvec, h, cmp);
     j2vec = _mm256_blendv_epi8(
-        j2vec, idxvec, reinterpret_cast<__m256i>(cmp));
+        j2vec, idxvec, _mm256_castps_si256(cmp));
     idxvec = _mm256_add_epi32(idxvec, _mm256_set1_epi32(8));
   }
   alignas(__m256) float uminmem[8], usubminmem[8];
@@ -148,14 +148,14 @@ find_umins_avx2(
     __m256d cmp = _mm256_cmp_pd(h, uminvec, _CMP_LE_OQ);
     usubminvec = _mm256_blendv_pd(usubminvec, uminvec, cmp);
     j2vec = _mm256_blendv_epi8(
-        j2vec, j1vec, reinterpret_cast<__m256i>(cmp));
+        j2vec, j1vec, _mm256_castpd_si256(cmp));
     uminvec = _mm256_blendv_pd(uminvec, h, cmp);
     j1vec = _mm256_blendv_epi8(
-        j1vec, idxvec, reinterpret_cast<__m256i>(cmp));
+        j1vec, idxvec, _mm256_castpd_si256(cmp));
     cmp = _mm256_andnot_pd(cmp, _mm256_cmp_pd(h, usubminvec, _CMP_LT_OQ));
     usubminvec = _mm256_blendv_pd(usubminvec, h, cmp);
     j2vec = _mm256_blendv_epi8(
-        j2vec, idxvec, reinterpret_cast<__m256i>(cmp));
+        j2vec, idxvec, _mm256_castpd_si256(cmp));
     idxvec = _mm256_add_epi64(idxvec, _mm256_set1_epi64x(4));
   }
   alignas(__m256d) double uminmem[4], usubminmem[4];
