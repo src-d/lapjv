@@ -1,32 +1,80 @@
-name: Release
+name: Publish Python 🐍 packages 📦 to PyPI
 
 on:
   push:
     tags:
-    - 'v*'
+      - 'v?[0-9]+.[0-9]+.[0-9]+'
 
 jobs:
-  release-package:
-    if: "contains(github.event.head_commit.message, 'Bump version')"
-    name: Release package on PyPI
-    runs-on: ubuntu-20.04
+  build-sdist:
+    runs-on: ubuntu-latest
+
+    env:
+      PIP_DISABLE_PIP_VERSION_CHECK: 1
+
     steps:
-    - uses: actions/checkout@v2
-    - name: Install dependencies
+    - uses: actions/checkout@v3
+
+    - name: Set up Python
+      uses: actions/setup-python@v2
+
+    - name: Build source distribution
       run: |
-        pip3 install -U setuptools twine wheel auditwheel
-        echo "$HOME/.local/bin" >> $GITHUB_PATH
-    - name: Build package
-      run: |
-        python3 setup.py bdist_wheel sdist --format=gztar
-        mv dist/*.whl .
-        auditwheel repair --plat manylinux_2_24_x86_64 -w dist *.whl
-        rm *.whl
-        ls
-        ls dist
-        twine check dist/*
-    - name: Publish package to PyPI
+        pip install -U setuptools pip
+        python setup.py sdist
+
+    - uses: actions/upload-artifact@v2
+      with:
+        name: dist
+        path: dist/*.tar.*
+
+  build-wheels:
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ ubuntu-latest, macos-latest, windows-latest ]
+        cibw_python: [ "cp38-*", "cp39-*", "cp310-*" ]
+        cibw_arch: [ "auto64" ]
+
+    defaults:
+      run:
+        shell: bash
+
+    env:
+      PIP_DISABLE_PIP_VERSION_CHECK: 1
+
+    steps:
+    - uses: actions/checkout@v3
+
+    - uses: pypa/cibuildwheel@v2.2.2
+      env:
+        CIBW_BUILD_VERBOSITY: 1
+        CIBW_BUILD: ${{ matrix.cibw_python }}
+        CIBW_ARCHS: ${{ matrix.cibw_arch }}
+
+    - uses: actions/upload-artifact@v2
+      with:
+        name: dist
+        path: wheelhouse/*.whl
+
+  publish:
+    needs: [build-sdist, build-wheels]
+    runs-on: ubuntu-latest
+
+    steps:
+    - uses: actions/checkout@v3
+
+    - uses: actions/download-artifact@v2
+      with:
+        name: dist
+        path: dist/
+
+    - run: |
+        ls -al dist/
+
+    - name: Upload to PyPI
       uses: pypa/gh-action-pypi-publish@master
       with:
         user: __token__
-        password: "${{ secrets.PYPI_API_TOKEN }}"
+        password: ${{ secrets.PYPI_API_TOKEN }}

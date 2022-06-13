@@ -38,10 +38,21 @@ jobs:
   test:
     name: Unit tests
     if: "!contains(github.event.head_commit.message, 'Bump version')"
-    runs-on: ubuntu-20.04
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ ubuntu-latest, macos-latest, windows-latest ]
+        cibw_python: [ "cp38-*", "cp39-*", "cp310-*" ]
+        cibw_arch: [ "auto64" ]
+
+    defaults:
+      run:
+        shell: bash
+
     steps:
     - name: actions/checkout
-      uses: actions/checkout@v2
+      uses: actions/checkout@v3
     - name: actions/cache pip
       uses: actions/cache@v2
       with:
@@ -58,6 +69,10 @@ jobs:
     - name: test
       run: |
         set -x
+        if [ "${{ matrix.os }}" == "macos-latest" ]; then
+          sysctl -a
+          (sysctl -a | grep machdep.cpu.leaf7_features | grep AVX2) || exit 0
+        fi
         python3 -m unittest discover .
   bump_version:
     name: Bump the version

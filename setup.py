@@ -3,9 +3,20 @@ import platform
 
 from setuptools import Extension, setup
 
+# GCP N2
+GCC_OPT = [
+    "-march=haswell",
+    "-maes",
+    "-mno-pku",
+    "-mno-sgx",
+    "--param", "l1-cache-line-size=64",
+    "--param", "l1-cache-size=32",
+    "--param", "l2-cache-size=33792",
+]
+
 CXX_ARGS = {
-    "Darwin": ["-std=c++17", "-march=native", "-ftree-vectorize"],
-    "Linux": ["-fopenmp", "-std=c++17", "-march=native", "-ftree-vectorize"],
+    "Darwin": ["-std=c++17", *GCC_OPT, "-mavx2", "-ftree-vectorize"],
+    "Linux": ["-fopenmp", "-std=c++17", *GCC_OPT, "-mabm", "-mavx2", "-ftree-vectorize"],
     "Windows": ["/openmp", "/std:c++latest", "/arch:AVX2"],
 }
 
