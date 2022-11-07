@@ -3,8 +3,11 @@ import platform
 
 from setuptools import Extension, setup
 
-# GCP N2
-GCC_OPT = [
+UNIX_CXXFLAGS = [
+    "-std=c++17",
+    "-mavx2",
+    "-ftree-vectorize",
+    # GCP N2
     "-march=haswell",
     "-maes",
     "-mno-pku",
@@ -15,8 +18,8 @@ GCC_OPT = [
 ]
 
 CXX_ARGS = {
-    "Darwin": ["-std=c++17", *GCC_OPT, "-mavx2", "-ftree-vectorize"],
-    "Linux": ["-fopenmp", "-std=c++17", *GCC_OPT, "-mabm", "-mavx2", "-ftree-vectorize"],
+    # "Darwin": [*UNIX_CXXFLAGS],  not supported anymore due to M1, PRs welcome
+    "Linux": ["-fopenmp", *UNIX_CXXFLAGS, "-mabm"],
     "Windows": ["/openmp", "/std:c++latest", "/arch:AVX2"],
 }
 

@@ -36,7 +36,8 @@ Installing
 ```
 pip3 install lapjv
 ```
-Tested on Linux and macOS.
+Tested on Linux and Windows. *macOS is not supported, please do not report macOS build errors in the issues.*
+Feel free to PR macOS support, but I warn that it will be a rough ride.
 
 Usage
 -----
