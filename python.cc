@@ -64,7 +64,8 @@ using pyobj = _pyobj<PyObject>;
 using pyarray = _pyobj<PyArrayObject>;
 
 template <typename F>
-static always_inline double call_lap(int dim, const void *restrict cost_matrix, bool verbose,
+static always_inline double call_lap(int dim, const void *restrict cost_matrix,
+                                     bool verbose, bool disable_avx,
                                      int *restrict row_ind, int *restrict col_ind,
                                      void *restrict u, void *restrict v) {
   double lapcost;
@@ -76,10 +77,18 @@ static always_inline double call_lap(int dim, const void *restrict cost_matrix, 
   auto cost_matrix_typed = reinterpret_cast<const F*>(cost_matrix);
   auto u_typed = reinterpret_cast<F*>(u);
   auto v_typed = reinterpret_cast<F*>(v);
-  if (hasAVX2) {
-    lapcost = lap<true>(dim, cost_matrix_typed, verbose, row_ind, col_ind, u_typed, v_typed);
+  if (hasAVX2 && !disable_avx) {
+    if (verbose) {
+      lapcost = lap<true, true>(dim, cost_matrix_typed, row_ind, col_ind, u_typed, v_typed);
+    } else {
+      lapcost = lap<true, false>(dim, cost_matrix_typed, row_ind, col_ind, u_typed, v_typed);
+    }
   } else {
-    lapcost = lap<false>(dim, cost_matrix_typed, verbose, row_ind, col_ind, u_typed, v_typed);
+    if (verbose) {
+      lapcost = lap<false, true>(dim, cost_matrix_typed, row_ind, col_ind, u_typed, v_typed);
+    } else {
+      lapcost = lap<false, false>(dim, cost_matrix_typed, row_ind, col_ind, u_typed, v_typed);
+    }
   }
   Py_END_ALLOW_THREADS
   return lapcost;
@@ -88,12 +97,13 @@ static always_inline double call_lap(int dim, const void *restrict cost_matrix, 
 static PyObject *py_lapjv(PyObject *self, PyObject *args, PyObject *kwargs) {
   PyObject *cost_matrix_obj;
   int verbose = 0;
+  int disable_avx = 0;
   int force_doubles = 0;
   static const char *kwlist[] = {
-      "cost_matrix", "verbose", "force_doubles", NULL};
+      "cost_matrix", "verbose", "disable_avx", "force_doubles", NULL};
   if (!PyArg_ParseTupleAndKeywords(
-      args, kwargs, "O|pb", const_cast<char**>(kwlist),
-      &cost_matrix_obj, &verbose, &force_doubles)) {
+      args, kwargs, "O|pbb", const_cast<char**>(kwlist),
+      &cost_matrix_obj, &verbose, &disable_avx, &force_doubles)) {
     return NULL;
   }
   pyarray cost_matrix_array;
@@ -144,9 +154,9 @@ static PyObject *py_lapjv(PyObject *self, PyObject *args, PyObject *kwargs) {
   auto u = PyArray_DATA(u_array.get());
   auto v = PyArray_DATA(v_array.get());
   if (float32) {
-    lapcost = call_lap<float>(dim, cost_matrix, verbose, row_ind, col_ind, u, v);
+    lapcost = call_lap<float>(dim, cost_matrix, verbose, disable_avx, row_ind, col_ind, u, v);
   } else {
-    lapcost = call_lap<double>(dim, cost_matrix, verbose, row_ind, col_ind, u, v);
+    lapcost = call_lap<double>(dim, cost_matrix, verbose, disable_avx, row_ind, col_ind, u, v);
   }
   return Py_BuildValue("(OO(dOO))",
                        row_ind_array.get(), col_ind_array.get(), lapcost,

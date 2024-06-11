@@ -228,15 +228,14 @@ find_umins(
 /// @param u out dual variables, row reduction numbers / size dim
 /// @param v out dual variables, column reduction numbers / size dim
 /// @return achieved minimum assignment cost
-template <bool avx2, typename idx, typename cost>
-cost lap(int dim, const cost *restrict assign_cost, bool verbose,
+template <bool avx2, bool verbose, typename idx, typename cost>
+cost lap(int dim, const cost *restrict assign_cost,
          idx *restrict rowsol, idx *restrict colsol,
          cost *restrict u, cost *restrict v) {
-  auto free = std::unique_ptr<idx[]>(new idx[dim]);     // list of unassigned rows.
-  auto collist = std::unique_ptr<idx[]>(new idx[dim]);  // list of columns to be scanned in various ways.
-  auto matches = std::unique_ptr<idx[]>(new idx[dim]);  // counts how many times a row could be assigned.
-  auto d = std::unique_ptr<cost[]>(new cost[dim]);      // 'cost-distance' in augmenting path calculation.
-  auto pred = std::unique_ptr<idx[]>(new idx[dim]);     // row-predecessor of column in augmenting/alternating path.
+  auto collist = std::make_unique<idx[]>(dim);  // list of columns to be scanned in various ways.
+  auto matches = std::make_unique<idx[]>(dim);  // counts how many times a row could be assigned.
+  auto d = std::make_unique<cost[]>(dim);       // 'cost-distance' in augmenting path calculation.
+  auto pred = std::make_unique<idx[]>(dim);     // row-predecessor of column in augmenting/alternating path.
 
   // init how many times a row will be assigned in the column reduction.
   #if _OPENMP >= 201307
@@ -273,6 +272,7 @@ cost lap(int dim, const cost *restrict assign_cost, bool verbose,
   }
 
   // REDUCTION TRANSFER
+  auto free = matches.get();  // list of unassigned rows.
   idx numfree = 0;
   for (idx i = 0; i < dim; i++) {
     const cost *local_cost = &assign_cost[i * dim];
