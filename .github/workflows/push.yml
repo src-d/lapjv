@@ -53,6 +53,10 @@ jobs:
     steps:
     - name: actions/checkout
       uses: actions/checkout@v3
+    - name: actions/setup-python@v4
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.11'
     - name: actions/cache pip
       uses: actions/cache@v2
       with:
