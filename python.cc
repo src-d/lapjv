@@ -3,7 +3,7 @@
 #include <Python.h>
 #define NPY_NO_DEPRECATED_API NPY_1_7_API_VERSION
 #include <numpy/arrayobject.h>
-#include "cpuid.h"
+#include "cpu_id.h"
 #include "lap.h"
 
 static SIMDFlags simd_flags = SIMDFlags();
