@@ -3,7 +3,11 @@
 #include <limits>
 #include <memory>
 
+#include "cpu_id.h"
+
+#if LAPJV_X86
 #include <immintrin.h>
+#endif
 
 
 #ifdef __GNUC__
@@ -48,6 +52,8 @@ find_umins_regular(
 // These are not constexpr because of typename idx
 #define FLOAT_MIN_DIM 64
 #define DOUBLE_MIN_DIM 100000  // 64-bit code is actually always slower
+
+#if LAPJV_X86
 
 template <typename idx>
 always_inline std::tuple<float, float, idx, idx>
@@ -206,6 +212,20 @@ find_umins_avx2(
   }
   return std::make_tuple(umin, usubmin, j1, j2);
 }
+
+#else
+
+// No AVX2 on non-x86. The scalar kernel is the only kernel. SIMDFlags never
+// reports AVX2 there either, so this exists to keep find_umins<true> parseable.
+template <typename idx, typename cost>
+always_inline std::tuple<cost, cost, idx, idx>
+find_umins_avx2(
+    idx dim, idx i, const cost *restrict assign_cost,
+    const cost *restrict v) {
+  return find_umins_regular(dim, i, assign_cost, v);
+}
+
+#endif  // LAPJV_X86
 
 template <bool avx2, typename idx, typename cost>
 always_inline std::tuple<cost, cost, idx, idx>
