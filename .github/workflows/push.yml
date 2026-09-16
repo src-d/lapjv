@@ -21,7 +21,7 @@ jobs:
     - name: actions/checkout
       uses: actions/checkout@v2
     - name: actions/cache
-      uses: actions/cache@v2
+      uses: actions/cache@v4
       with:
         path: ${{ env.PIP_CACHE }}
         key: ubuntu-22.04-pip-lint-${{ hashFiles('lint-requirements.txt') }}
@@ -58,7 +58,7 @@ jobs:
       with:
         python-version: '3.11'
     - name: actions/cache pip
-      uses: actions/cache@v2
+      uses: actions/cache@v4
       with:
         path: ${{ env.PIP_CACHE }}
         key: ubuntu-22.04-pip-main-${{ hashFiles('requirements.txt', 'test-requirements.txt') }}

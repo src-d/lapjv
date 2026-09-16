@@ -1,11 +1,20 @@
 #pragma once
 
-#ifdef _MSC_VER
-  #include<intrin.h>
-  #define CPUID(info, x)  __cpuidex(reinterpret_cast<int *>(info), x, 0)
+// CPUID and the AVX2 kernels only exist on x86
+#if defined(__x86_64__) || defined(__i386__) || defined(_M_X64) || defined(_M_IX86)
+  #define LAPJV_X86 1
 #else
-  #include <cpuid.h>
-  #define CPUID(info, x)  __cpuid_count(x, 0, info[0], info[1], info[2], info[3])
+  #define LAPJV_X86 0
+#endif
+
+#if LAPJV_X86
+  #ifdef _MSC_VER
+    #include<intrin.h>
+    #define CPUID(info, x)  __cpuidex(reinterpret_cast<int *>(info), x, 0)
+  #else
+    #include <cpuid.h>
+    #define CPUID(info, x)  __cpuid_count(x, 0, info[0], info[1], info[2], info[3])
+  #endif
 #endif
 
 class SIMDFlags final {
@@ -14,6 +23,7 @@ class SIMDFlags final {
   SIMDFlags(const SIMDFlags &) = delete;
   SIMDFlags &operator=(const SIMDFlags &) = delete;
 
+#if LAPJV_X86
   SIMDFlags() {
     unsigned int cpuInfo[4];
     // CPUID: https://en.wikipedia.org/wiki/CPUID
@@ -34,6 +44,9 @@ class SIMDFlags final {
     CPUID(cpuInfo, 0x80000001);
     simd_flags_ |= cpuInfo[2] & (1 << 16) ? SIMD_FMA4  : SIMD_NONE;
   }
+#else
+  SIMDFlags() = default;
+#endif
 
   inline bool hasSSE()   const { return simd_flags_ & SIMD_SSE;   }
   inline bool hasSSE2()  const { return simd_flags_ & SIMD_SSE2;  }

@@ -3,10 +3,14 @@ import platform
 
 from setuptools import Extension, setup
 
-UNIX_CXXFLAGS = [
-    "-std=c++17",
+X86_MACHINES = ["x86_64", "amd64", "x86", "i386", "i686", "AMD64"]
+IS_X86 = platform.machine().lower() in X86_MACHINES
+
+UNIX_CXXFLAGS = ["-std=c++17", "-ftree-vectorize"]
+
+# x86-only flags for GCC, not supported by aarch64
+UNIX_X86_CXXFLAGS = [
     "-mavx2",
-    "-ftree-vectorize",
     # GCP N2
     "-march=haswell",
     "-maes",
@@ -17,9 +21,18 @@ UNIX_CXXFLAGS = [
     "--param", "l2-cache-size=33792",
 ]
 
+
+def unix_flags(*extra_x86):
+    """Portable flags, plus the Haswell-tuned ones only where they mean something."""
+    flags = [*UNIX_CXXFLAGS]
+    if IS_X86:
+        flags += [*UNIX_X86_CXXFLAGS, *extra_x86]
+    return flags
+
+
 CXX_ARGS = {
     # "Darwin": [*UNIX_CXXFLAGS],  not supported anymore due to M1, PRs welcome
-    "Linux": ["-fopenmp", *UNIX_CXXFLAGS, "-mabm"],
+    "Linux": ["-fopenmp", *unix_flags("-mabm")],
     "Windows": ["/openmp", "/std:c++latest", "/arch:AVX2"],
 }
 
